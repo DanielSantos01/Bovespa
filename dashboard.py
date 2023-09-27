@@ -7,6 +7,18 @@ import plotly.graph_objects as go
 
 st.set_page_config(layout='wide')
 
+def plot_line(column_name, title=None):
+  st.header(title or column_name)
+  fig = px.line(
+    data,
+    x='DT_FIM_EXERC',
+    y=column_name,
+    color='DENOM_CIA',
+    labels={'DT_FIM_EXERC': '', column_name: '', 'DENOM_CIA': 'Empresa'},
+  )
+  fig.update_xaxes(dtick=1)
+  st.plotly_chart(fig, use_container_width=True)
+
 def get_data():
   data = pd.read_csv('./database.csv').sort_values(by='DT_FIM_EXERC')
   data['LIQUIDEZ CORRENTE'] = pd.to_numeric(data['LIQUIDEZ CORRENTE'].str.replace(',', '.'))
@@ -14,7 +26,7 @@ def get_data():
   data['EXIGIVEL / ATIVO (TOTAL)'] = pd.to_numeric(data['EXIGIVEL / ATIVO (TOTAL)'].str.replace(',', '.'))
   return data
 
-get_metrics = lambda : ['LIQUIDEZ', 'ENDIVIDAMENTO', 'COBERTURA', 'LUCRATIVIDADE', 'RETORNO', 'ATIVIDADE', 'INSIGHTS']
+get_metrics = lambda : ['LIQUIDEZ', 'ENDIVIDAMENTO', 'COBERTURA', 'LUCRATIVIDADE', 'ESTRUTURAIS', 'RETORNO', 'ATIVIDADE', 'INSIGHTS']
 data = get_data()
 
 ## SIDEBAR-----------------------------------------------------------------------------------------------------------------------------------
@@ -111,6 +123,13 @@ if selected_metric == 'LIQUIDEZ':
   fig.update_layout(showlegend=False)
   st.plotly_chart(fig, use_container_width=True)
 
+  plot_line('LIQUIDEZ A SECO')
+  col1, col2 = st.columns(2, gap="large")
+  with col1:
+    plot_line("ATIVO CIRCULANTE")
+  with col2:
+    plot_line("PASSIVO CIRCULANTE")
+
 
 if selected_metric == 'ENDIVIDAMENTO':
   st.header('Endividamento geral')
@@ -123,6 +142,15 @@ if selected_metric == 'ENDIVIDAMENTO':
   )
   fig.update_xaxes(dtick=1)
   st.plotly_chart(fig, use_container_width=True)
+
+  col1, col2 = st.columns(2, gap="large")
+  with col1:
+    plot_line("EXIGIVEL A LONGO PRAZO")
+  with col2:
+    plot_line("PATRIMONIO LIQUIDO")
+
+  plot_line("EXIGIVEL / ATIVO (TOTAL)")
+  plot_line("CAPITAIS DE LONGO PRAZO")
 
 
 if selected_metric == 'INSIGHTS':
@@ -170,3 +198,48 @@ if selected_metric == 'INSIGHTS':
   fig.update_layout(showlegend=False)
   st.plotly_chart(fig, use_container_width=True)
 
+# Tab de COBERTURA
+if selected_metric == 'COBERTURA':  
+  plot_line('COBERTURA DE JUROS')
+  plot_line('COBERTURA DE JUROS (CAIXA OPERAÇÕES)')
+  
+
+# Tab de LUCRATIVIDADE
+if selected_metric == 'LUCRATIVIDADE':
+
+  col1, col2 = st.columns(2, gap="large")
+  with col1:
+    plot_line('MG_LIQ', 'Margem Líquida')
+    plot_line('RECEITA LIQUIDA')
+  with col2:
+    plot_line('MG_OP', 'Margem Operacional')
+    plot_line('LIQUIDEZ A SECO')
+
+
+# Tab de ESTRUTURAIS
+if selected_metric == 'ESTRUTURAIS':
+  col1, col2 = st.columns(2, gap="large")
+  with col1:
+    plot_line('CUSTO DA MERCADORIA VENDIDA %')
+  with col2:
+    plot_line('DESPESAS OPERACIONAIS %')
+  
+  plot_line('JUROS')
+  plot_line('GIRO')
+
+
+# Tab de RETORNO
+if selected_metric == 'RETORNO':
+  col1, col2 = st.columns(2, gap="large")
+  with col1:
+    plot_line('ROA')
+  with col2:
+    plot_line('ROE')
+
+  plot_line('ROI')
+
+# Tab de ATIVIDADE
+if selected_metric == 'ATIVIDADE':
+  plot_line('GIRO')
+  plot_line('GIRO DE VALORES A RECEBER')
+  plot_line('GIRO DE DUPLICATAS A PAGAR')
