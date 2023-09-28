@@ -440,13 +440,15 @@ if selected_metric == 'INSIGHTS':
     columns.remove('DT_FIM_EXERC')
     col1, col2, col3 = st.columns(3, gap='large')
     with col1:
-      name = st.text_input('Nome do comparativo', placeholder='Insira um nome para o comparativo')
+      name = st.text_input('Nome do comparativo', placeholder='Insira um nome para o comparativo', key=f'name-{i}')
     with col2:
       comparative = st.selectbox(
         f'Agregação para {name}',
-        ('Desvio padrão', 'Média', 'Soma', 'Mínimo', 'Máximo', 'Mediana'))
+        ('Desvio padrão', 'Média', 'Soma', 'Mínimo', 'Máximo', 'Mediana'),
+        key=f'comparative-{i}'
+      )
     with col3:
-      columns = st.multiselect(f'Colunas do comparativo {name}', columns, placeholder=f'Comparativo {i +1}')
+      columns = st.multiselect(f'Colunas do comparativo {name}', columns, placeholder=f'Comparativo {i +1}',  key=f'columns-{i}')
 
     base = data[columns]
     obj = {}
