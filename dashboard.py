@@ -7,18 +7,7 @@ import plotly.graph_objects as go
 
 st.set_page_config(layout='wide')
 
-def plot_line(column_name, title=None):
-  st.header(title or column_name)
-  fig = px.line(
-    data,
-    x='DT_FIM_EXERC',
-    y=column_name,
-    color='DENOM_CIA',
-    labels={'DT_FIM_EXERC': '', column_name: '', 'DENOM_CIA': 'Empresa'},
-  )
-  fig.update_xaxes(dtick=1)
-  st.plotly_chart(fig, use_container_width=True)
-
+@st.cache_data
 def get_data():
   data = pd.read_csv('./database.csv').sort_values(by='DT_FIM_EXERC')
   data['LIQUIDEZ CORRENTE'] = pd.to_numeric(data['LIQUIDEZ CORRENTE'].str.replace(',', '.'))
@@ -29,15 +18,59 @@ def get_data():
 get_metrics = lambda : ['LIQUIDEZ', 'ENDIVIDAMENTO', 'COBERTURA', 'LUCRATIVIDADE', 'ESTRUTURAIS', 'RETORNO', 'ATIVIDADE', 'INSIGHTS']
 data = get_data()
 
+visualization_keys = {
+  'heatmap': 'Mapa de Calor',
+  'lines': 'Linhas'
+}
+
+alternative_visualizations = {
+  'LIQUIDEZ': {
+    'ATIVO CIRCULANTE': [visualization_keys['heatmap'], visualization_keys['lines']],
+    'PASSIVO CIRCULANTE': [visualization_keys['heatmap'], visualization_keys['lines']],
+  }
+}
+
+runtime_vars = {}
+
+def find_closed_intervals(years):
+  if len(years) == 0:
+    return []
+
+  closed_intervals = []
+  start_year = years[0]
+  end_year = years[0]
+
+  for year in years[1:]:
+    if year == end_year + 1:
+      end_year = year
+    else:
+      if start_year == end_year:
+        closed_intervals.append(str(start_year))
+      else:
+        closed_intervals.append(f"{start_year}-{end_year}")
+      start_year = end_year = year
+
+  if start_year == end_year:
+    closed_intervals.append(str(start_year))
+  else:
+    closed_intervals.append(f"{start_year}-{end_year}")
+
+  return closed_intervals
+
 ## SIDEBAR-----------------------------------------------------------------------------------------------------------------------------------
-st.sidebar.title('Bovespa Dashboard')
+st.sidebar.title('Financial Dashboard')
 st.sidebar.header('Filtros')
 selected_category = st.sidebar.selectbox('Segmento', data['TIPO'].unique(), index=2)
 data = data[data['TIPO'] == selected_category]
 selected_metric = st.sidebar.selectbox('Demonstrativos', get_metrics())
 min_year = st.sidebar.number_input('Ano inicial', min_value=data['DT_FIM_EXERC'].min(), max_value=data['DT_FIM_EXERC'].max())
 max_year = st.sidebar.number_input('Ano final', min_value=min_year, max_value=data['DT_FIM_EXERC'].max(), value=data['DT_FIM_EXERC'].max())
-selected_companies = st.sidebar.multiselect('Empresa', data['DENOM_CIA'].unique(), placeholder="Selecione especificamente")
+selected_companies = st.sidebar.multiselect('Empresa', data['DENOM_CIA'].unique(), placeholder="Selecione")
+
+if alternative_visualizations.get(selected_metric):
+  st.sidebar.header('Visualizações alternativas')
+  for key in dict.keys(alternative_visualizations[selected_metric]):
+    runtime_vars[f'VISUALIZATION {key}'] = st.sidebar.selectbox(key, alternative_visualizations[selected_metric][key])
 ##------------------------------------------------------------------------------------------------------------------------------------------
 
 st.title(f'Indicadores de {selected_metric.lower().capitalize()}')
@@ -49,50 +82,100 @@ if (selected_companies): data = data[data['DENOM_CIA'].isin(selected_companies)]
 
 diff = max_year - min_year + 1
 
+def plot_column(title, x='DENOM_CIA', y='DENOM_CIA', base=None, barmode=None):
+  if base is None: base = data
+  fig = px.bar(
+    base,
+    x=x,
+    y=y,
+    title=title,
+    barmode=barmode
+  )
+  fig.update_xaxes(dtick=1, title_text='')
+  fig.update_yaxes(title_text='')
+  st.plotly_chart(fig, use_container_width=True)
+
+def plot_line(title, base=None, x='DT_FIM_EXERC', y='LUCRO LIQUIDO', color='DENOM_CIA'):
+  if base is None: base = data
+  if diff == 1:
+    plot_column(title, y=y, base=base)
+  else:
+    fig = px.line(
+      base,
+      x=x,
+      y=y,
+      color=color,
+      title=title,
+    )
+    fig.update_xaxes(dtick=1, title_text='')
+    fig.update_yaxes(title_text='')
+    st.plotly_chart(fig, use_container_width=True)
+
+def plot_heatmap(title, base=None):
+  if base is None: base = data
+  fig = px.imshow(
+    base,
+    labels={'color': 'valor', 'DENOM_CIA': 'Empresa'},
+    x=base.columns.get_level_values(1),
+    y=base.index,
+    title=title,
+  )
+  fig.update_xaxes(dtick=1, title_text='')
+  fig.update_yaxes(title_text='')
+  st.plotly_chart(fig, use_container_width=True)
+
+def plot_histogram(title, x='DENOM_CIA', y='DENOM_CIA', base=None, barmode=None):
+  if base is None: base = data
+  fig = px.histogram(
+    base,
+    x=x,
+    y=y,
+    title=title,
+    barmode=barmode
+  )
+  fig.update_xaxes(dtick=1, title_text='')
+  fig.update_yaxes(title_text='')
+  st.plotly_chart(fig, use_container_width=True)
+
+
+# Tab de LIQUIDEZ
 if selected_metric == 'LIQUIDEZ':
   if diff == 1:
-    st.header('Capital Circulante Líquido')
     base = (data.groupby('DENOM_CIA')['CAPITAL CIRCULANTE LIQUIDO'].sum()).reset_index()
-    fig = px.bar(base, x='DENOM_CIA', y='CAPITAL CIRCULANTE LIQUIDO')
-    fig.update_xaxes(title_text='')
-    fig.update_yaxes(title_text='')
-    st.plotly_chart(fig, use_container_width=True)
+    plot_column('Capital Circulante Líquido', y='CAPITAL CIRCULANTE LIQUIDO', base=base)
   else:
-    st.header('Capital Circulante Líquido')
-    fig = px.line(
-      data,
-      x='DT_FIM_EXERC',
-      y='CAPITAL CIRCULANTE LIQUIDO',
-      color='DENOM_CIA',
-      labels={'DT_FIM_EXERC': '', 'CAPITAL CIRCULANTE LIQUIDO': '', 'DENOM_CIA': 'Empresa'},
-    )
-    fig.update_xaxes(dtick=1)
-    st.plotly_chart(fig, use_container_width=True)
+    col1, col2 = st.columns(2, gap='large')
+    with col1:
+      if runtime_vars['VISUALIZATION ATIVO CIRCULANTE'] == visualization_keys['lines']:
+        plot_line('Ativo Circulante', y='ATIVO CIRCULANTE')
+      else:
+        base = data.pivot(index='DENOM_CIA', columns='DT_FIM_EXERC', values=['ATIVO CIRCULANTE'])
+        plot_heatmap('Ativo Circulante', base=base)
+    with col2:
+      if runtime_vars['VISUALIZATION PASSIVO CIRCULANTE'] == visualization_keys['lines']:
+        plot_line('Passivo Circulante', y='PASSIVO CIRCULANTE')
+      else:
+        base = data.pivot(index='DENOM_CIA', columns='DT_FIM_EXERC', values=['PASSIVO CIRCULANTE'])
+        plot_heatmap('Passivo Circulante', base=base)
 
+    plot_line('Capital Circulante Líquido', y='CAPITAL CIRCULANTE LIQUIDO')
 
   if diff == 1:
-    st.header('Liquidez corrente')
     base = (data.groupby('DENOM_CIA')['LIQUIDEZ CORRENTE'].sum()).reset_index()
-    fig = px.bar(base, x='DENOM_CIA', y='LIQUIDEZ CORRENTE')
-    fig.update_xaxes(title_text='')
-    fig.update_yaxes(title_text='')
-    st.plotly_chart(fig, use_container_width=True)
+    plot_column('Liquidez Corrente', y='LIQUIDEZ CORRENTE', base=base)
   else:
-    st.header('Liquidez Corrente')
-    fig = px.line(
-      data,
-      x='DT_FIM_EXERC',
-      y='LIQUIDEZ CORRENTE',
-      color='DENOM_CIA',
-      labels={'DT_FIM_EXERC': '', 'LIQUIDEZ CORRENTE': '', 'DENOM_CIA': 'Empresa'},
-    )
-    fig.update_xaxes(dtick=1)
-    st.plotly_chart(fig, use_container_width=True)
-
+    plot_line('Liquidez Corrente', y='LIQUIDEZ CORRENTE')
 
   st.header('Relação Capital Circulante & Liquidez Corrente (normalized)')
   companies = data['DENOM_CIA'].unique()
-  fig = make_subplots(rows=math.ceil(len(companies)/2), cols=2, shared_xaxes=True, subplot_titles=companies, vertical_spacing=0.4)
+  get_rows = lambda : math.ceil(len(companies)/2) if len(companies) > 1 else 1
+  fig = make_subplots(
+    rows=get_rows(),
+    cols=2,
+    shared_xaxes=True,
+    subplot_titles=companies,
+    vertical_spacing=(1/(get_rows() - 1)) * 0.4 if get_rows() > 1 else 0.4
+  )
   for i, company in enumerate(companies, start=1):
     base = data[data['DENOM_CIA'] == company]
     if i % 2 != 0: col = 1
@@ -123,64 +206,105 @@ if selected_metric == 'LIQUIDEZ':
   fig.update_layout(showlegend=False)
   st.plotly_chart(fig, use_container_width=True)
 
-  plot_line('LIQUIDEZ A SECO')
+
+# Tab de ENDIVIDAMENTO
+if selected_metric == 'ENDIVIDAMENTO':
+  plot_line('Endividamento geral', y='ENDIVIDAMENTO GERAL')
+
+  col1, col2 = st.columns(2, gap="large")
+  with col1: plot_line('Exigível a Longo Prazo', y='EXIGIVEL A LONGO PRAZO')
+  with col2: plot_line('Patrimônio Líquido', y='PATRIMONIO LIQUIDO')
+  plot_line('Exigível / Ativo (total)', y='EXIGIVEL / ATIVO (TOTAL)' )
+  plot_line('Capitais de longo prazo', y='CAPITAIS DE LONGO PRAZO')
+
+
+
+
+# Tab de COBERTURA
+if selected_metric == 'COBERTURA':  
+  plot_line('Cobertura de juros', y='COBERTURA DE JUROS')
+  plot_line('Cobertura de juros (Caixa operações)', y='COBERTURA DE JUROS (CAIXA OPERAÇÕES)', )
+
+
+
+
+# Tab de LUCRATIVIDADE
+if selected_metric == 'LUCRATIVIDADE':
   col1, col2 = st.columns(2, gap="large")
   with col1:
-    plot_line("ATIVO CIRCULANTE")
+    plot_line('Margem Líquida', y='MG_LIQ')
+    plot_line('Receita Líquida', y='RECEITA LIQUIDA', )
   with col2:
-    plot_line("PASSIVO CIRCULANTE")
+    plot_line('Margem Operacional', y='MG_OP')
+    plot_line('Liquidez a seco', y='LIQUIDEZ A SECO')
 
 
-if selected_metric == 'ENDIVIDAMENTO':
-  st.header('Endividamento geral')
-  fig = px.line(
-    data,
-    x='DT_FIM_EXERC',
-    y='ENDIVIDAMENTO GERAL',
-    color='DENOM_CIA',
-    labels={'DT_FIM_EXERC': '', 'ENDIVIDAMENTO GERAL': '', 'DENOM_CIA': 'Empresa'},
-  )
-  fig.update_xaxes(dtick=1)
+
+
+# Tab de ESTRUTURAIS
+if selected_metric == 'ESTRUTURAIS':
+  col1, col2 = st.columns(2, gap="large")
+  with col1:
+    plot_line('Custo da mercadoria vendida', y='CUSTO DA MERCADORIA VENDIDA %')
+  with col2:
+    plot_line('Despesas operacionais %', y='DESPESAS OPERACIONAIS %', )
+  
+  plot_line('Juros', y='JUROS')
+  plot_line('Giro', y='GIRO')
+
+
+
+# Tab de RETORNO
+if selected_metric == 'RETORNO':
+  uninvestment_companies = data[data['ROI'].isna()]['DENOM_CIA'].unique()
+  year_intervals = []
+  comps = []
+  relation = {}
+
+  for company in uninvestment_companies:
+    base = data[data['DENOM_CIA'] == company][data['ROI'].isna()]
+    intervals = find_closed_intervals(base['DT_FIM_EXERC'].unique())
+    comps.extend([company] * len(intervals))
+    year_intervals.extend(intervals)
+
+  col1, col2 = st.columns(2, gap="large")
+  with col1:
+    plot_line('Retorno Sobre os Ativos', y='ROA')
+  with col2:
+    plot_line('Retorno Sobre o Patrimônio', y='ROE')
+
+  plot_line('Retorno Sobre o Investimento', y='ROI')
+
+  fig = go.Figure(
+    data=[go.Table(header=dict(values=['Empresa', 'Período'], fill_color='rgb(0, 104, 201)', line_color='darkslategray'),
+    cells=dict(values=[comps, year_intervals], fill_color='rgb(120, 120, 120)'))
+  ])
+  fig.update_layout(title="Empresas que não investiram em algum período")
   st.plotly_chart(fig, use_container_width=True)
 
-  col1, col2 = st.columns(2, gap="large")
-  with col1:
-    plot_line("EXIGIVEL A LONGO PRAZO")
-  with col2:
-    plot_line("PATRIMONIO LIQUIDO")
-
-  plot_line("EXIGIVEL / ATIVO (TOTAL)")
-  plot_line("CAPITAIS DE LONGO PRAZO")
 
 
+# Tab de ATIVIDADE
+if selected_metric == 'ATIVIDADE':
+  plot_line('Giro', y='GIRO')
+  plot_line('Giro dos valores a receber', y='GIRO DE VALORES A RECEBER')
+  plot_line('Giro dos valores a pagar', y='GIRO DE DUPLICATAS A PAGAR')
+
+
+
+# Tab de INSIGHTS
 if selected_metric == 'INSIGHTS':
-  ##------------------------------------------------------------------------------------------------------------------------------------------
   col1, col2 = st.columns(2, gap="large")
   with col1:
-    st.header('Receita Líquida (mean)')
     base = (data.groupby('DENOM_CIA')['RECEITA LIQUIDA'].sum()/diff).reset_index()
-    fig = px.bar(base, x='DENOM_CIA', y='RECEITA LIQUIDA')
-    fig.update_xaxes(title_text='')
-    fig.update_yaxes(title_text='')
-    st.plotly_chart(fig, use_container_width=True)
-
+    plot_column('Receita Líquida (mean)', y='RECEITA LIQUIDA', base=base)
   with col2:
-    st.header('Ativo & Passivo circulante (mean)')
     base = data.groupby('DENOM_CIA').agg({'PASSIVO CIRCULANTE': 'sum', 'ATIVO CIRCULANTE': 'sum'}).reset_index()
     base['ATIVO CIRCULANTE'] = base['ATIVO CIRCULANTE']/diff
     base['PASSIVO CIRCULANTE'] = base['PASSIVO CIRCULANTE']/diff
-    fig = px.histogram(base, x='DENOM_CIA', y=['ATIVO CIRCULANTE', 'PASSIVO CIRCULANTE'], barmode='group')
-    fig.update_xaxes(title_text='')
-    fig.update_yaxes(title_text='')
-    st.plotly_chart(fig, use_container_width=True)
-  ##------------------------------------------------------------------------------------------------------------------------------------------
+    plot_histogram('Ativo e Passivo Circulante (mean)', y=['ATIVO CIRCULANTE', 'PASSIVO CIRCULANTE'], barmode='group', base=base)
 
-  st.header('Liquidez e Endividamento')
-  fig = px.histogram(data, x='DENOM_CIA', y=['LIQUIDEZ CORRENTE', 'LIQUIDEZ A SECO', 'EXIGIVEL / ATIVO (TOTAL)'], barmode='group')
-  fig.update_xaxes(title_text='')
-  fig.update_yaxes(title_text='')
-  st.plotly_chart(fig, use_container_width=True)
-
+  plot_histogram('Liquidez e Endividamento', y=['LIQUIDEZ CORRENTE', 'LIQUIDEZ A SECO', 'EXIGIVEL / ATIVO (TOTAL)'], barmode='group')
 
   st.header('Composição do passivo total')
   companies = [f'{company.split(" ")[0]} {company.split(" ")[1]}' for company in data['DENOM_CIA'].unique()]
@@ -197,49 +321,3 @@ if selected_metric == 'INSIGHTS':
     )
   fig.update_layout(showlegend=False)
   st.plotly_chart(fig, use_container_width=True)
-
-# Tab de COBERTURA
-if selected_metric == 'COBERTURA':  
-  plot_line('COBERTURA DE JUROS')
-  plot_line('COBERTURA DE JUROS (CAIXA OPERAÇÕES)')
-  
-
-# Tab de LUCRATIVIDADE
-if selected_metric == 'LUCRATIVIDADE':
-
-  col1, col2 = st.columns(2, gap="large")
-  with col1:
-    plot_line('MG_LIQ', 'Margem Líquida')
-    plot_line('RECEITA LIQUIDA')
-  with col2:
-    plot_line('MG_OP', 'Margem Operacional')
-    plot_line('LIQUIDEZ A SECO')
-
-
-# Tab de ESTRUTURAIS
-if selected_metric == 'ESTRUTURAIS':
-  col1, col2 = st.columns(2, gap="large")
-  with col1:
-    plot_line('CUSTO DA MERCADORIA VENDIDA %')
-  with col2:
-    plot_line('DESPESAS OPERACIONAIS %')
-  
-  plot_line('JUROS')
-  plot_line('GIRO')
-
-
-# Tab de RETORNO
-if selected_metric == 'RETORNO':
-  col1, col2 = st.columns(2, gap="large")
-  with col1:
-    plot_line('ROA')
-  with col2:
-    plot_line('ROE')
-
-  plot_line('ROI')
-
-# Tab de ATIVIDADE
-if selected_metric == 'ATIVIDADE':
-  plot_line('GIRO')
-  plot_line('GIRO DE VALORES A RECEBER')
-  plot_line('GIRO DE DUPLICATAS A PAGAR')
