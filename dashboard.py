@@ -5,7 +5,7 @@ import math
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 
-st.set_page_config(layout='wide')
+st.set_page_config(page_title='Financial Dashboard', page_icon='https://icons.iconarchive.com/icons/custom-icon-design/flatastic-9/512/Line-chart-icon.png', layout = 'wide', initial_sidebar_state='collapsed')
 
 @st.cache_data
 def get_data():
@@ -111,18 +111,21 @@ def plot_line(title, base=None, x='DT_FIM_EXERC', y='LUCRO LIQUIDO', color='DENO
     fig.update_yaxes(title_text='')
     st.plotly_chart(fig, use_container_width=True)
 
-def plot_heatmap(title, base=None):
-  if base is None: base = data
-  fig = px.imshow(
-    base,
-    labels={'color': 'valor', 'DENOM_CIA': 'Empresa'},
-    x=base.columns.get_level_values(1),
-    y=base.index,
-    title=title,
-  )
-  fig.update_xaxes(dtick=1, title_text='')
-  fig.update_yaxes(title_text='')
-  st.plotly_chart(fig, use_container_width=True)
+def plot_heatmap(title, base=None, y=None):
+  if base is None or diff == 1: base = data
+  if diff == 1:
+    plot_column(title, y=y, base=base)
+  else:
+    fig = px.imshow(
+      base,
+      labels={'color': 'valor', 'DENOM_CIA': 'Empresa'},
+      x=base.columns.get_level_values(1),
+      y=base.index,
+      title=title,
+    )
+    fig.update_xaxes(dtick=1, title_text='')
+    fig.update_yaxes(title_text='')
+    st.plotly_chart(fig, use_container_width=True)
 
 def plot_histogram(title, x='DENOM_CIA', y='DENOM_CIA', base=None, barmode=None):
   if base is None: base = data
@@ -140,25 +143,21 @@ def plot_histogram(title, x='DENOM_CIA', y='DENOM_CIA', base=None, barmode=None)
 
 # Tab de LIQUIDEZ
 if selected_metric == 'LIQUIDEZ':
-  if diff == 1:
-    base = (data.groupby('DENOM_CIA')['CAPITAL CIRCULANTE LIQUIDO'].sum()).reset_index()
-    plot_column('Capital Circulante Líquido', y='CAPITAL CIRCULANTE LIQUIDO', base=base)
-  else:
-    col1, col2 = st.columns(2, gap='large')
-    with col1:
-      if runtime_vars['VISUALIZATION ATIVO CIRCULANTE'] == visualization_keys['lines']:
-        plot_line('Ativo Circulante', y='ATIVO CIRCULANTE')
-      else:
-        base = data.pivot(index='DENOM_CIA', columns='DT_FIM_EXERC', values=['ATIVO CIRCULANTE'])
-        plot_heatmap('Ativo Circulante', base=base)
-    with col2:
-      if runtime_vars['VISUALIZATION PASSIVO CIRCULANTE'] == visualization_keys['lines']:
-        plot_line('Passivo Circulante', y='PASSIVO CIRCULANTE')
-      else:
-        base = data.pivot(index='DENOM_CIA', columns='DT_FIM_EXERC', values=['PASSIVO CIRCULANTE'])
-        plot_heatmap('Passivo Circulante', base=base)
+  col1, col2 = st.columns(2, gap='large')
+  with col1:
+    if runtime_vars['VISUALIZATION ATIVO CIRCULANTE'] == visualization_keys['lines']:
+      plot_line('Ativo Circulante', y='ATIVO CIRCULANTE')
+    else:
+      base = data.pivot(index='DENOM_CIA', columns='DT_FIM_EXERC', values=['ATIVO CIRCULANTE'])
+      plot_heatmap('Ativo Circulante', y='ATIVO CIRCULANTE', base=base)
+  with col2:
+    if runtime_vars['VISUALIZATION PASSIVO CIRCULANTE'] == visualization_keys['lines']:
+      plot_line('Passivo Circulante', y='PASSIVO CIRCULANTE')
+    else:
+      base = data.pivot(index='DENOM_CIA', columns='DT_FIM_EXERC', values=['PASSIVO CIRCULANTE'])
+      plot_heatmap('Passivo Circulante',  y='PASSIVO CIRCULANTE', base=base)
 
-    plot_line('Capital Circulante Líquido', y='CAPITAL CIRCULANTE LIQUIDO')
+  plot_line('Capital Circulante Líquido', y='CAPITAL CIRCULANTE LIQUIDO')
 
   if diff == 1:
     base = (data.groupby('DENOM_CIA')['LIQUIDEZ CORRENTE'].sum()).reset_index()
@@ -214,7 +213,7 @@ if selected_metric == 'ENDIVIDAMENTO':
   col1, col2 = st.columns(2, gap="large")
   with col1: plot_line('Exigível a Longo Prazo', y='EXIGIVEL A LONGO PRAZO')
   with col2: plot_line('Patrimônio Líquido', y='PATRIMONIO LIQUIDO')
-  plot_line('Exigível / Ativo (total)', y='EXIGIVEL / ATIVO (TOTAL)' )
+  plot_line('Exigível Total / Ativo Total', y='EXIGIVEL / ATIVO (TOTAL)' )
   plot_line('Capitais de longo prazo', y='CAPITAIS DE LONGO PRAZO')
 
 
