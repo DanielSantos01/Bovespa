@@ -116,12 +116,18 @@ def find_closed_intervals(years):
 ## SIDEBAR-----------------------------------------------------------------------------------------------------------------------------------
 st.sidebar.title('Financial Dashboard')
 st.sidebar.header('Filtros')
-selected_category = st.sidebar.selectbox('Segmento', data['TIPO'].unique(), index=2)
-data = data[data['TIPO'] == selected_category]
 selected_metric = st.sidebar.selectbox('Demonstrativos', get_metrics())
+if selected_metric != 'INSIGHTS':
+  selected_category = st.sidebar.selectbox('Segmento', data['TIPO'].unique(), index=2)
+  data = data[data['TIPO'] == selected_category]
 min_year = st.sidebar.number_input('Ano inicial', min_value=data['DT_FIM_EXERC'].min(), max_value=data['DT_FIM_EXERC'].max())
 max_year = st.sidebar.number_input('Ano final', min_value=min_year, max_value=data['DT_FIM_EXERC'].max(), value=data['DT_FIM_EXERC'].max())
-selected_companies = st.sidebar.multiselect('Empresa', data['DENOM_CIA'].unique(), placeholder="Selecione")
+
+if selected_metric != 'INSIGHTS':
+  selected_companies = st.sidebar.multiselect('Empresa', data['DENOM_CIA'].unique(), placeholder="Selecione")
+else:
+  selected_companies = st.sidebar.multiselect('Especificação', get_data()['TIPO'].unique(), placeholder="Selecione")
+
 
 if alternative_visualizations.get(selected_metric):
   st.sidebar.header('Visualizações alternativas')
@@ -431,9 +437,11 @@ if selected_metric == 'INSIGHTS':
   columns.remove('DENOM_CIA')
   columns.remove('DT_FIM_EXERC')
   comparatives_len = st.number_input('Quantidade de comparativos', min_value=1, max_value=len(columns))
+  data = get_data()
+  data = data[(data['DT_FIM_EXERC'] >= min_year) & (data['DT_FIM_EXERC'] <= max_year)]
+  if len(selected_companies) > 0: data = data[data['TIPO'].isin(selected_companies)]
 
   for i in range(comparatives_len):
-    data = get_data()
     columns = list(data.columns)
     columns.remove('TIPO')
     columns.remove('DENOM_CIA')
