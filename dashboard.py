@@ -13,6 +13,21 @@ def get_data():
   data['LIQUIDEZ CORRENTE'] = pd.to_numeric(data['LIQUIDEZ CORRENTE'].str.replace(',', '.'))
   data['LIQUIDEZ A SECO'] = pd.to_numeric(data['LIQUIDEZ A SECO'].str.replace(',', '.'))
   data['EXIGIVEL / ATIVO (TOTAL)'] = pd.to_numeric(data['EXIGIVEL / ATIVO (TOTAL)'].str.replace(',', '.'))
+  data['ENDIVIDAMENTO GERAL'] = pd.to_numeric(data['ENDIVIDAMENTO GERAL'].str.replace(',', '.'))
+  data['CAPITAIS DE LONGO PRAZO'] = pd.to_numeric(data['CAPITAIS DE LONGO PRAZO'].str.replace(',', '.'))
+  data['COBERTURA DE JUROS'] = pd.to_numeric(data['COBERTURA DE JUROS'].str.replace(',', '.'))
+  data['COBERTURA DE JUROS (CAIXA OPERAÇÕES)'] = pd.to_numeric(data['COBERTURA DE JUROS (CAIXA OPERAÇÕES)'].str.replace(',', '.'))
+  data['MG_LIQ'] = pd.to_numeric(data['MG_LIQ'].str.replace(',', '.'))
+  data['MG_OP'] = pd.to_numeric(data['MG_OP'].str.replace(',', '.'))
+  data['CUSTO DA MERCADORIA VENDIDA %'] = pd.to_numeric(data['CUSTO DA MERCADORIA VENDIDA %'].str.replace(',', '.'))
+  data['DESPESAS OPERACIONAIS %'] = pd.to_numeric(data['DESPESAS OPERACIONAIS %'].str.replace(',', '.'))
+  data['GIRO'] = pd.to_numeric(data['GIRO'].str.replace(',', '.'))
+  data['JUROS'] = pd.to_numeric(data['JUROS'].str.replace(',', '.'))
+  data['ROA'] = pd.to_numeric(data['ROA'].str.replace(',', '.'))
+  data['ROE'] = pd.to_numeric(data['ROE'].str.replace(',', '.'))
+  data['ROI'] = pd.to_numeric(data['ROI'].str.replace(',', '.'))
+  data['GIRO DE VALORES A RECEBER'] = pd.to_numeric(data['GIRO DE VALORES A RECEBER'].str.replace(',', '.'))
+  data['GIRO DE DUPLICATAS A PAGAR'] = pd.to_numeric(data['GIRO DE DUPLICATAS A PAGAR'].str.replace(',', '.'))
   return data
 
 get_metrics = lambda : ['LIQUIDEZ', 'ENDIVIDAMENTO', 'COBERTURA', 'LUCRATIVIDADE', 'ESTRUTURAIS', 'RETORNO', 'ATIVIDADE', 'INSIGHTS']
@@ -20,14 +35,48 @@ data = get_data()
 
 visualization_keys = {
   'heatmap': 'Mapa de Calor',
-  'lines': 'Linhas'
+  'lines': 'Linhas',
+  'column': 'Barras'
 }
 
 alternative_visualizations = {
   'LIQUIDEZ': {
-    'ATIVO CIRCULANTE': [visualization_keys['heatmap'], visualization_keys['lines']],
-    'PASSIVO CIRCULANTE': [visualization_keys['heatmap'], visualization_keys['lines']],
-  }
+    'Ativo circulante': [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+    'Passivo circulante': [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+  },
+  'ENDIVIDAMENTO': {
+    'Endividamento geral': [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+    'Exigível a Longo Prazo': [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+    'Patrimônio Líquido': [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+    'Exigível / Ativo (total)': [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+    'Capitais de longo prazo': [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+  },
+  'COBERTURA': {
+    'Cobertura de juros': [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+    'Cobertura de juros (Caixa operações)': [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+  },
+  'LUCRATIVIDADE': {
+    'Margem Líquida':  [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+    'Margem Operacional':  [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+    'Receita Líquida':  [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+    'Liquidez a seco':  [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+  },
+  'ESTRUTURAIS': {
+    'Custo da mercadoria vendida':  [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+    'Despesas operacionais %':  [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+    'Juros':  [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+    'Giro':  [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+  },
+  'RETORNO': {
+    'Retorno Sobre os Ativos': [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+    'Retorno Sobre o Patrimônio': [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+    'Retorno Sobre o Investimento': [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+  },
+  'ATIVIDADE': {
+    'Giro': [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+    'Giro dos valores a receber': [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+    'Giro dos valores a pagar': [visualization_keys['heatmap'], visualization_keys['lines'], visualization_keys['column']],
+  },
 }
 
 runtime_vars = {}
@@ -82,6 +131,28 @@ if (selected_companies): data = data[data['DENOM_CIA'].isin(selected_companies)]
 
 diff = max_year - min_year + 1
 
+agg_map = {
+  'Soma': 'sum', 'Média': 'mean', 'Mínimo': 'min', 'Máximo': 'max', 'Mediana' :'median', 'Desvio padrão': 'std'
+}
+
+def plot_chat(title, x='DT_FIM_EXERC', y=None, color='DENOM_CIA', barmode=None):
+  if runtime_vars[f'VISUALIZATION {title}'] == visualization_keys['lines']:
+    plot_line(title, y=y, x=x, color=color)
+  elif runtime_vars[f'VISUALIZATION {title}'] == visualization_keys['heatmap']:
+    heat_base = data.pivot(index='DENOM_CIA', columns='DT_FIM_EXERC', values=[y])
+    plot_heatmap(y, base=heat_base)
+  elif runtime_vars[f'VISUALIZATION {title}'] == visualization_keys['column']:
+    col1, _, _, _ = st.columns(4)
+
+    with col1:
+      option = st.selectbox(
+      f'{title} função agregação:',
+      ('Desvio padrão', 'Média', 'Soma', 'Mínimo', 'Máximo', 'Mediana'))
+
+    column_base = data.groupby('DENOM_CIA').agg({y: agg_map[option]}).reset_index()
+    plot_column(f'{title} ({option})', y=y, base=column_base, barmode=barmode)
+
+
 def plot_column(title, x='DENOM_CIA', y='DENOM_CIA', base=None, barmode=None):
   if base is None: base = data
   fig = px.bar(
@@ -94,6 +165,7 @@ def plot_column(title, x='DENOM_CIA', y='DENOM_CIA', base=None, barmode=None):
   fig.update_xaxes(dtick=1, title_text='')
   fig.update_yaxes(title_text='')
   st.plotly_chart(fig, use_container_width=True)
+
 
 def plot_line(title, base=None, x='DT_FIM_EXERC', y='LUCRO LIQUIDO', color='DENOM_CIA'):
   if base is None: base = data
@@ -111,6 +183,7 @@ def plot_line(title, base=None, x='DT_FIM_EXERC', y='LUCRO LIQUIDO', color='DENO
     fig.update_yaxes(title_text='')
     st.plotly_chart(fig, use_container_width=True)
 
+
 def plot_heatmap(title, base=None):
   if base is None: base = data
   fig = px.imshow(
@@ -124,6 +197,7 @@ def plot_heatmap(title, base=None):
   fig.update_yaxes(title_text='')
   st.plotly_chart(fig, use_container_width=True)
 
+
 def plot_histogram(title, x='DENOM_CIA', y='DENOM_CIA', base=None, barmode=None):
   if base is None: base = data
   fig = px.histogram(
@@ -131,7 +205,8 @@ def plot_histogram(title, x='DENOM_CIA', y='DENOM_CIA', base=None, barmode=None)
     x=x,
     y=y,
     title=title,
-    barmode=barmode
+    barmode=barmode,
+    labels=['DENOM_CIA']
   )
   fig.update_xaxes(dtick=1, title_text='')
   fig.update_yaxes(title_text='')
@@ -146,17 +221,17 @@ if selected_metric == 'LIQUIDEZ':
   else:
     col1, col2 = st.columns(2, gap='large')
     with col1:
-      if runtime_vars['VISUALIZATION ATIVO CIRCULANTE'] == visualization_keys['lines']:
-        plot_line('Ativo Circulante', y='ATIVO CIRCULANTE')
+      if runtime_vars['VISUALIZATION Ativo circulante'] == visualization_keys['lines']:
+        plot_line('Ativo circulante', y='ATIVO CIRCULANTE')
       else:
         base = data.pivot(index='DENOM_CIA', columns='DT_FIM_EXERC', values=['ATIVO CIRCULANTE'])
-        plot_heatmap('Ativo Circulante', base=base)
+        plot_heatmap('Ativo circulante', base=base)
     with col2:
-      if runtime_vars['VISUALIZATION PASSIVO CIRCULANTE'] == visualization_keys['lines']:
-        plot_line('Passivo Circulante', y='PASSIVO CIRCULANTE')
+      if runtime_vars['VISUALIZATION Passivo circulante'] == visualization_keys['lines']:
+        plot_line('Passivo circulante', y='PASSIVO CIRCULANTE')
       else:
         base = data.pivot(index='DENOM_CIA', columns='DT_FIM_EXERC', values=['PASSIVO CIRCULANTE'])
-        plot_heatmap('Passivo Circulante', base=base)
+        plot_heatmap('Passivo circulante', base=base)
 
     plot_line('Capital Circulante Líquido', y='CAPITAL CIRCULANTE LIQUIDO')
 
@@ -209,53 +284,90 @@ if selected_metric == 'LIQUIDEZ':
 
 # Tab de ENDIVIDAMENTO
 if selected_metric == 'ENDIVIDAMENTO':
-  plot_line('Endividamento geral', y='ENDIVIDAMENTO GERAL')
+  plot_chat('Endividamento geral', x='DT_FIM_EXERC', y='ENDIVIDAMENTO GERAL')
 
   col1, col2 = st.columns(2, gap="large")
-  with col1: plot_line('Exigível a Longo Prazo', y='EXIGIVEL A LONGO PRAZO')
-  with col2: plot_line('Patrimônio Líquido', y='PATRIMONIO LIQUIDO')
-  plot_line('Exigível / Ativo (total)', y='EXIGIVEL / ATIVO (TOTAL)' )
-  plot_line('Capitais de longo prazo', y='CAPITAIS DE LONGO PRAZO')
-
-
+  with col1: plot_chat('Exigível a Longo Prazo', y='EXIGIVEL A LONGO PRAZO')
+  with col2: plot_chat('Patrimônio Líquido', y='PATRIMONIO LIQUIDO')
+  plot_chat('Exigível / Ativo (total)', y='EXIGIVEL / ATIVO (TOTAL)' )
+  plot_chat('Capitais de longo prazo', y='CAPITAIS DE LONGO PRAZO')
 
 
 # Tab de COBERTURA
-if selected_metric == 'COBERTURA':  
-  plot_line('Cobertura de juros', y='COBERTURA DE JUROS')
-  plot_line('Cobertura de juros (Caixa operações)', y='COBERTURA DE JUROS (CAIXA OPERAÇÕES)', )
+if selected_metric == 'COBERTURA': 
+  col1, _, _, _ = st.columns(4)
+  with col1:
+    option = st.selectbox(
+    f'Cobertura de juros e Caixa operações função agregação:',
+    ('Desvio padrão', 'Média', 'Soma', 'Mínimo', 'Máximo', 'Mediana'))
 
-
+  base = data.groupby('DENOM_CIA').agg({'COBERTURA DE JUROS': agg_map[option], 'COBERTURA DE JUROS (CAIXA OPERAÇÕES)': agg_map[option]}).reset_index()
+  base['COBERTURA DE JUROS'] = base['COBERTURA DE JUROS']/diff
+  base['COBERTURA DE JUROS (CAIXA OPERAÇÕES)'] = base['COBERTURA DE JUROS (CAIXA OPERAÇÕES)']/diff
+  plot_histogram(f'Cobertura de juros e Caixa operações ({option})', y=['COBERTURA DE JUROS (CAIXA OPERAÇÕES)', 'COBERTURA DE JUROS'], barmode='group', base=base)
+ 
+  plot_chat('Cobertura de juros', y='COBERTURA DE JUROS')
+  plot_chat('Cobertura de juros (Caixa operações)', y='COBERTURA DE JUROS (CAIXA OPERAÇÕES)', )
 
 
 # Tab de LUCRATIVIDADE
 if selected_metric == 'LUCRATIVIDADE':
+  col1, _, _, _ = st.columns(4)
+  with col1:
+    option = st.selectbox(
+    f'Margem Líquida e Margem Operacional função agregação:',
+    ('Desvio padrão', 'Média', 'Soma', 'Mínimo', 'Máximo', 'Mediana'))
+
+  base = data.groupby('DENOM_CIA').agg({'MG_LIQ': agg_map[option], 'MG_OP': agg_map[option]}).reset_index()
+  base['MG_LIQ'] = base['MG_LIQ']/diff
+  base['MG_OP'] = base['MG_OP']/diff
+  plot_histogram(f'Margem Líquida e Margem Operacional ({option})', y=['MG_OP', 'MG_LIQ'], barmode='group', base=base)
+
   col1, col2 = st.columns(2, gap="large")
   with col1:
-    plot_line('Margem Líquida', y='MG_LIQ')
-    plot_line('Receita Líquida', y='RECEITA LIQUIDA', )
+    plot_chat('Margem Líquida', y='MG_LIQ')
+    plot_chat('Receita Líquida', y='RECEITA LIQUIDA', )
   with col2:
-    plot_line('Margem Operacional', y='MG_OP')
-    plot_line('Liquidez a seco', y='LIQUIDEZ A SECO')
-
-
+    plot_chat('Margem Operacional', y='MG_OP')
+    plot_chat('Liquidez a seco', y='LIQUIDEZ A SECO')
 
 
 # Tab de ESTRUTURAIS
 if selected_metric == 'ESTRUTURAIS':
+  col1, _, _, _ = st.columns(4)
+  with col1:
+    option = st.selectbox(
+    f'Custo da mercadoria vendida e Despesas operacionais % função agregação:',
+    ('Desvio padrão', 'Média', 'Soma', 'Mínimo', 'Máximo', 'Mediana'))
+
+  base = data.groupby('DENOM_CIA').agg({'CUSTO DA MERCADORIA VENDIDA %': agg_map[option], 'DESPESAS OPERACIONAIS %': agg_map[option]}).reset_index()
+  base['CUSTO DA MERCADORIA VENDIDA %'] = base['CUSTO DA MERCADORIA VENDIDA %']/diff
+  base['DESPESAS OPERACIONAIS %'] = base['DESPESAS OPERACIONAIS %']/diff
+  plot_histogram(f'Custo da mercadoria vendida e Despesas operacionais % ({option})', y=['DESPESAS OPERACIONAIS %', 'CUSTO DA MERCADORIA VENDIDA %'], barmode='group', base=base)
+
   col1, col2 = st.columns(2, gap="large")
   with col1:
-    plot_line('Custo da mercadoria vendida', y='CUSTO DA MERCADORIA VENDIDA %')
+    plot_chat('Custo da mercadoria vendida', y='CUSTO DA MERCADORIA VENDIDA %')
   with col2:
-    plot_line('Despesas operacionais %', y='DESPESAS OPERACIONAIS %', )
+    plot_chat('Despesas operacionais %', y='DESPESAS OPERACIONAIS %', )
   
-  plot_line('Juros', y='JUROS')
-  plot_line('Giro', y='GIRO')
-
+  plot_chat('Juros', y='JUROS')
+  plot_chat('Giro', y='GIRO')
 
 
 # Tab de RETORNO
 if selected_metric == 'RETORNO':
+  col1, _, _, _ = st.columns(4)
+  with col1:
+    option = st.selectbox(
+    f'Retorno Sobre os Ativos e Patrimônio função agregação:',
+    ('Desvio padrão', 'Média', 'Soma', 'Mínimo', 'Máximo', 'Mediana'))
+
+  base = data.groupby('DENOM_CIA').agg({'ROA': agg_map[option], 'ROE': agg_map[option]}).reset_index()
+  base['ROA'] = base['ROA']/diff
+  base['ROE'] = base['ROE']/diff
+  plot_histogram(f'Retorno Sobre os Ativos e Patrimônio ({option})', y=['ROE', 'ROA'], barmode='group', base=base)
+
   uninvestment_companies = data[data['ROI'].isna()]['DENOM_CIA'].unique()
   year_intervals = []
   comps = []
@@ -269,11 +381,11 @@ if selected_metric == 'RETORNO':
 
   col1, col2 = st.columns(2, gap="large")
   with col1:
-    plot_line('Retorno Sobre os Ativos', y='ROA')
+    plot_chat('Retorno Sobre os Ativos', y='ROA')
   with col2:
-    plot_line('Retorno Sobre o Patrimônio', y='ROE')
+    plot_chat('Retorno Sobre o Patrimônio', y='ROE')
 
-  plot_line('Retorno Sobre o Investimento', y='ROI')
+  plot_chat('Retorno Sobre o Investimento', y='ROI')
 
   fig = go.Figure(
     data=[go.Table(header=dict(values=['Empresa', 'Período'], fill_color='rgb(0, 104, 201)', line_color='darkslategray'),
@@ -283,13 +395,22 @@ if selected_metric == 'RETORNO':
   st.plotly_chart(fig, use_container_width=True)
 
 
-
 # Tab de ATIVIDADE
 if selected_metric == 'ATIVIDADE':
-  plot_line('Giro', y='GIRO')
-  plot_line('Giro dos valores a receber', y='GIRO DE VALORES A RECEBER')
-  plot_line('Giro dos valores a pagar', y='GIRO DE DUPLICATAS A PAGAR')
+  col1, _, _, _ = st.columns(4)
+  with col1:
+    option = st.selectbox(
+    f'Giro dos valores a receber e pagar função agregação:',
+    ('Desvio padrão', 'Média', 'Soma', 'Mínimo', 'Máximo', 'Mediana'))
 
+  base = data.groupby('DENOM_CIA').agg({'GIRO DE VALORES A RECEBER': agg_map[option], 'GIRO DE DUPLICATAS A PAGAR': agg_map[option]}).reset_index()
+  base['GIRO DE VALORES A RECEBER'] = base['GIRO DE VALORES A RECEBER']/diff
+  base['GIRO DE DUPLICATAS A PAGAR'] = base['GIRO DE DUPLICATAS A PAGAR']/diff
+  plot_histogram(f'Giro dos valores a receber e pagar ({option})', y=['GIRO DE DUPLICATAS A PAGAR', 'GIRO DE VALORES A RECEBER'], barmode='group', base=base)
+
+  plot_chat('Giro', y='GIRO')
+  plot_chat('Giro dos valores a receber', y='GIRO DE VALORES A RECEBER')
+  plot_chat('Giro dos valores a pagar', y='GIRO DE DUPLICATAS A PAGAR')
 
 
 # Tab de INSIGHTS
